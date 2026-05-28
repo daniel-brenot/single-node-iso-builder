@@ -92,7 +92,13 @@ The workflow in `.github/workflows/release.yml` builds both architectures and pu
 - `single-node-k3s-aarch64.iso`
 - `single-node-k3s-aarch64.iso.sha256`
 
-It runs when you push a tag matching `v*`:
+It runs when you push to `master` and publishes or updates the `latest` release:
+
+```sh
+git push origin master
+```
+
+It also runs when you push a tag matching `v*` and publishes that versioned release:
 
 ```sh
 git tag v0.1.0
