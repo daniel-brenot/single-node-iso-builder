@@ -1,0 +1,109 @@
+name: Build and publish ISOs
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create or update"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.asset_arch }} ISO
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nix_system: x86_64-linux
+            asset_arch: amd64
+          - nix_system: aarch64-linux
+            asset_arch: aarch64
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Enable aarch64 emulation
+        if: matrix.nix_system == 'aarch64-linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            extra-platforms = x86_64-linux aarch64-linux
+
+      - name: Use latest auto-updater binaries
+        run: |
+          nix flake lock \
+            --update-input auto-updater-amd64 \
+            --update-input auto-updater-aarch64
+
+      - name: Build ISO
+        run: |
+          set -euo pipefail
+
+          nix build ".#packages.${{ matrix.nix_system }}.iso" --print-build-logs
+
+          mkdir -p dist
+          cp -L result/iso/*.iso "dist/single-node-k3s-${{ matrix.asset_arch }}.iso"
+          sha256sum "dist/single-node-k3s-${{ matrix.asset_arch }}.iso" > "dist/single-node-k3s-${{ matrix.asset_arch }}.iso.sha256"
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: single-node-k3s-${{ matrix.asset_arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download ISO artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          release_notes="$(cat <<'EOF'
+          Burn the ISO for your architecture to a USB drive and boot it.
+
+          The live system starts a single-node k3s server and creates:
+          - /persistent
+          - /versions, including the bundled auto-updater binary and checksum
+
+          auto-updater runs on tty1 at startup.
+
+          Use the matching .sha256 file to verify the downloaded ISO.
+          EOF
+          )"
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TAG" \
+              --notes "$release_notes"
+          fi

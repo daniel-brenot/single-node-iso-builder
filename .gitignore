@@ -1,0 +1,5 @@
+result
+result-*
+*.qcow2
+*.iso
+*.iso.sha256
