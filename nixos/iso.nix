@@ -21,7 +21,9 @@ let
 in
 {
   imports = [
-    "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
+    "${modulesPath}/installer/cd-dvd/iso-image.nix"
+    "${modulesPath}/profiles/base.nix"
+    "${modulesPath}/profiles/minimal.nix"
   ];
 
   image.fileName = lib.mkForce "single-node-k3s-${pkgs.stdenv.hostPlatform.system}.iso";
@@ -31,6 +33,15 @@ in
     makeEfiBootable = true;
     makeUsbBootable = true;
   };
+
+  hardware = {
+    enableAllHardware = true;
+    enableRedistributableFirmware = lib.mkDefault true;
+  };
+
+  swapDevices = lib.mkImageMediaOverride [ ];
+  fileSystems = lib.mkImageMediaOverride config.lib.isoFileSystems;
+  boot.initrd.luks.devices = lib.mkImageMediaOverride { };
 
   networking = {
     hostName = "single-node-k3s";
