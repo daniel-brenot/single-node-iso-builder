@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  modulesPath,
   pkgs,
   autoUpdaterBinary,
   ...
@@ -20,7 +21,7 @@ let
 in
 {
   imports = [
-    "${pkgs.path}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+    "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
   ];
 
   isoImage = {
