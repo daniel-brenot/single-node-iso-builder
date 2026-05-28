@@ -24,8 +24,9 @@ in
     "${modulesPath}/installer/cd-dvd/installation-cd-minimal.nix"
   ];
 
+  image.fileName = lib.mkForce "single-node-k3s-${pkgs.stdenv.hostPlatform.system}.iso";
+
   isoImage = {
-    isoName = lib.mkForce "single-node-k3s-${pkgs.stdenv.hostPlatform.system}.iso";
     volumeID = "SN_K3S_ISO";
     makeEfiBootable = true;
     makeUsbBootable = true;
@@ -184,6 +185,4 @@ in
     "nix-command"
     "flakes"
   ];
-
-  system.copySystemConfiguration = true;
 }
