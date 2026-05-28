@@ -26,31 +26,21 @@ jobs:
         include:
           - nix_system: x86_64-linux
             asset_arch: amd64
-          - nix_system: aarch64-linux
-            asset_arch: aarch64
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Enable aarch64 emulation
-        if: matrix.nix_system == 'aarch64-linux'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-            extra-platforms = x86_64-linux aarch64-linux
 
       - name: Use latest auto-updater binaries
         run: |
           nix flake lock \
-            --update-input auto-updater-amd64 \
-            --update-input auto-updater-aarch64
+            --update-input auto-updater-amd64
 
       - name: Build ISO
         run: |
